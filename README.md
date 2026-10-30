@@ -45,9 +45,13 @@ exec probe (the image has no shell).
 | SES result | SMTP reply | Client behaviour |
 |---|---|---|
 | sent | `250` | done |
-| `TooManyRequestsException`, `LimitExceededException`, `SendingPausedException`, network or credential errors | `451 4.3.0` | retry later |
+| `TooManyRequestsException`, `LimitExceededException`, `SendingPausedException`, network or credential errors | retried inside the relay (5 attempts, 1/2/4/8 s apart); if still failing `451 4.3.0` | retry later |
 | any other SES API error (e.g. `MessageRejected`, unverified identity) | `554 5.6.0` | permanent failure |
 | message over 10 MiB | `552` | permanent failure |
+
+Temporary failures are retried inside the relay because SMTP clients do
+not reliably retry a 451: Listmonk's SMTP pool, for example, skips the
+recipient instead.
 
 ## IAM
 
@@ -73,7 +77,7 @@ spec:
   serviceAccountName: listmonk
   initContainers:
     - name: ses-relay
-      image: ghcr.io/wlami-labs/ses-relay:0.1.1
+      image: ghcr.io/wlami-labs/ses-relay:0.1.2
       restartPolicy: Always
       env:
         - { name: SES_CONFIGURATION_SET, value: listmonk }

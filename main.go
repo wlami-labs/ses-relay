@@ -45,7 +45,8 @@ func main() {
 		slog.Error("aws config", "err", err)
 		os.Exit(1)
 	}
-	sender := &sesSender{client: sesv2.NewFromConfig(cfg), configurationSet: configSet}
+	// 5 attempts, 1+2+4+8 s of waiting: inside the 30 s budget per message.
+	sender := withRetry(&sesSender{client: sesv2.NewFromConfig(cfg), configurationSet: configSet}, 5, time.Second)
 
 	slog.Info("listening", "addr", addr, "configuration_set", configSet, "region", cfg.Region)
 	if err := NewServer(addr, sender, maxMessageBytes).ListenAndServe(); err != nil {

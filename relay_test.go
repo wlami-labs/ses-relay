@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/emersion/go-smtp"
@@ -142,5 +143,44 @@ func TestHealthcheck(t *testing.T) {
 	}
 	if err := healthcheck("127.0.0.1:1"); err == nil {
 		t.Fatal("healthcheck succeeded without a listener")
+	}
+}
+
+// flakySender fails with err for the first n calls, then succeeds.
+type flakySender struct {
+	n, calls int
+	err      error
+}
+
+func (f *flakySender) SendRaw(context.Context, string, []string, []byte) (string, error) {
+	f.calls++
+	if f.calls <= f.n {
+		return "", f.err
+	}
+	return "msg-ok", nil
+}
+
+func TestThrottleRetriedInsideRelay(t *testing.T) {
+	f := &flakySender{n: 2, err: &types.TooManyRequestsException{}}
+	r := withRetry(f, 4, time.Millisecond)
+	id, err := r.SendRaw(context.Background(), "a@x", []string{"b@x"}, []byte("m"))
+	if err != nil || id != "msg-ok" || f.calls != 3 {
+		t.Fatalf("got (%q, %v) after %d calls, want msg-ok after 3", id, err, f.calls)
+	}
+}
+
+func TestThrottleGivesUpAfterAttempts(t *testing.T) {
+	f := &flakySender{n: 99, err: &types.TooManyRequestsException{}}
+	_, err := withRetry(f, 3, time.Millisecond).SendRaw(context.Background(), "a@x", []string{"b@x"}, []byte("m"))
+	if err == nil || f.calls != 3 {
+		t.Fatalf("err=%v calls=%d, want error after 3 calls", err, f.calls)
+	}
+}
+
+func TestRejectNotRetried(t *testing.T) {
+	f := &flakySender{n: 99, err: &types.MessageRejected{}}
+	_, err := withRetry(f, 4, time.Millisecond).SendRaw(context.Background(), "a@x", []string{"b@x"}, []byte("m"))
+	if err == nil || f.calls != 1 {
+		t.Fatalf("err=%v calls=%d, want one call for a permanent rejection", err, f.calls)
 	}
 }
