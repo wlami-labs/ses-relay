@@ -19,6 +19,9 @@ app ──SMTP 127.0.0.1:2525──▶ ses-relay ──sesv2.SendEmail (raw)─�
 - Every message is sent with the configured SES configuration set, so SES
   event destinations (bounces, complaints) apply.
 - Distroless image, about 13 MB, a few MiB of RAM.
+- Retries throttled SES calls itself. Listmonk's SMTP pool does not retry a
+  `451`, it skips the recipient; the background is in
+  [Listmonk with Amazon SES: Three Ways It Fails Quietly](https://blog.wlami.com/posts/2026-10-30-listmonk-ses-quiet-failures/#2-throttled-recipients-are-skipped-not-retried).
 
 ## Security model
 

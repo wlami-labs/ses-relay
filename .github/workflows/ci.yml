@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: arc-runner-set
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
