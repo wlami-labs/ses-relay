@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   test:
+    # Pull requests from forks never run CI automatically. To test one, a
+    # maintainer pushes the reviewed changes to a branch in this repository.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v5
