@@ -134,3 +134,13 @@ func TestOversizeRejected(t *testing.T) {
 		t.Fatalf("SendRaw called %d times for an oversize message", f.calls)
 	}
 }
+
+func TestHealthcheck(t *testing.T) {
+	addr := startRelay(t, &fakeSender{}, 10<<20)
+	if err := healthcheck(addr); err != nil {
+		t.Fatalf("healthcheck on running relay: %v", err)
+	}
+	if err := healthcheck("127.0.0.1:1"); err == nil {
+		t.Fatal("healthcheck succeeded without a listener")
+	}
+}

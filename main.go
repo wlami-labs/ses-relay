@@ -12,6 +12,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/emersion/go-smtp"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 )
@@ -19,19 +21,17 @@ import (
 const maxMessageBytes = 10 << 20
 
 func main() {
-	healthcheck := flag.Bool("healthcheck", false, "exit 0 if the relay accepts connections")
+	healthcheckFlag := flag.Bool("healthcheck", false, "exit 0 if the relay accepts connections")
 	flag.Parse()
 
 	addr := os.Getenv("LISTEN_ADDR")
 	if addr == "" {
 		addr = "127.0.0.1:2525"
 	}
-	if *healthcheck {
-		c, err := net.DialTimeout("tcp", addr, 2*time.Second)
-		if err != nil {
+	if *healthcheckFlag {
+		if err := healthcheck(addr); err != nil {
 			os.Exit(1)
 		}
-		c.Close()
 		return
 	}
 
@@ -52,4 +52,17 @@ func main() {
 		slog.Error("serve", "err", err)
 		os.Exit(1)
 	}
+}
+
+// healthcheck speaks a minimal SMTP session (greeting, QUIT), so probes do
+// not leave "connection reset" errors in the log.
+func healthcheck(addr string) error {
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		return err
+	}
+	conn.SetDeadline(time.Now().Add(3 * time.Second))
+	c := smtp.NewClient(conn)
+	defer c.Close()
+	return c.Quit()
 }

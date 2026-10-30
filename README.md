@@ -37,7 +37,7 @@ app it serves: run it as a sidecar listening on loopback (the default
 
 Limits: 10 MiB per message, 50 recipients per message.
 
-Flag `-healthcheck`: connects to `LISTEN_ADDR` and exits 0/1. Use it as an
+Flag `-healthcheck`: opens an SMTP session to `LISTEN_ADDR` (greeting, QUIT) and exits 0/1. Use it as an
 exec probe (the image has no shell).
 
 ## SMTP replies
@@ -73,7 +73,7 @@ spec:
   serviceAccountName: listmonk
   initContainers:
     - name: ses-relay
-      image: ghcr.io/wlami-labs/ses-relay:v0.1.0
+      image: ghcr.io/wlami-labs/ses-relay:0.1.1
       restartPolicy: Always
       env:
         - { name: SES_CONFIGURATION_SET, value: listmonk }
